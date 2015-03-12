@@ -86,7 +86,7 @@ namespace System.Json
             if (items == null)
                 throw new ArgumentNullException("items");
 
-            foreach (KeyValuePair<string,JsonValue> pair in items)
+            foreach (KeyValuePair<string, JsonValue> pair in items)
                 map.Add(pair.Key, pair.Value);
         }
 
@@ -192,8 +192,8 @@ namespace System.Json
                 Type t = prop.FieldType;
                 object va = prop.GetValue(input);
                 string fieldName = prop.Name;
-                
-                object[] attrs = prop.GetCustomAttributes(typeof(JsonMapFieldName),true);
+
+                object[] attrs = prop.GetCustomAttributes(typeof(JsonMapFieldName), true);
 
                 foreach (object jmfn in attrs)
                 {
@@ -212,6 +212,11 @@ namespace System.Json
                 {
                     jv.Add(fieldName, toJsonArray(va as IList));
                 }
+                else if (va is IDictionary)
+                {
+                    jv.Add(fieldName, toJsonDictionary(va as IDictionary));
+
+                }
                 else
                 {
                     jv.Add(fieldName, toJsonValue(va));
@@ -219,6 +224,18 @@ namespace System.Json
             }
 
             return jv;
+        }
+
+        public static JsonObject toJsonDictionary(IDictionary dict)
+        {
+            JsonObject jo = new JsonObject();
+
+            foreach (string key in dict.Keys)
+            {
+                jo.Add(key, toJsonValue(dict[key]));
+            }
+
+            return jo;
         }
 
         public static JsonArray toJsonArray(IList list)
@@ -231,13 +248,13 @@ namespace System.Json
 
             return ja;
         }
-           
+
         public static T toGraph<T>(JsonValue jv)
         {
             return (T)toObject(typeof(T), jv);
         }
 
-        private static object toObject(Type maptype, JsonValue jv) 
+        private static object toObject(Type maptype, JsonValue jv)
         {
             if (jv == null) return null;
 
@@ -260,11 +277,24 @@ namespace System.Json
 
                 foreach (JsonValue j in jv)
                 {
-                    list.Add(toObject(maptype.GetGenericArguments()[0] ,j));
+                    list.Add(toObject(maptype.GetGenericArguments()[0], j));
                 }
 
                 return list;
-                
+
+            }
+
+            if (maptype.IsGenericType && maptype.GetGenericTypeDefinition() == typeof(Dictionary<,>))
+            {
+                IDictionary dic = Activator.CreateInstance(maptype) as IDictionary;
+
+                foreach (String key in ((JsonObject)jv).Keys)
+                {
+                    dic.Add(key, toObject(maptype.GetGenericArguments()[1], jv[key]));
+                }
+
+                return dic;
+
             }
 
             object instance = Activator.CreateInstance(maptype);
@@ -290,7 +320,7 @@ namespace System.Json
                             prop.SetValue(instance, (bool)jv[prop.Name]);
                             break;
                         case JsonType.Object:
-                            prop.SetValue(instance,toObject(t,  jv[prop.Name]));
+                            prop.SetValue(instance, toObject(t, jv[prop.Name]));
                             break;
                         case JsonType.Array:
                             prop.SetValue(instance, toObject(t, jv[prop.Name]));
