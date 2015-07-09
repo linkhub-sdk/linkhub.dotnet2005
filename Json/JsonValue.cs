@@ -45,7 +45,7 @@ namespace System.Json
         static JsonValue ToJsonValue(object ret)
         {
             if (ret == null)
-                return null;
+                return "";
             IEnumerable<KeyValuePair<string, object>> kvpc = ret as IEnumerable<KeyValuePair<string, object>>;
             if (kvpc != null)
                 return new JsonObject(ToJsonPairEnumerable(kvpc));
